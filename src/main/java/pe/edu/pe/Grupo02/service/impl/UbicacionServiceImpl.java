@@ -1,13 +1,13 @@
+// archivo: src/main/java/pe/edu/pe/Grupo02/service/impl/UbicacionServiceImpl.java
 package pe.edu.pe.Grupo02.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pe.edu.pe.Grupo02.model.Almacen;
 import pe.edu.pe.Grupo02.model.Ubicacion;
-import pe.edu.pe.Grupo02.repository.AlmacenRepository;
 import pe.edu.pe.Grupo02.repository.UbicacionRepository;
 import pe.edu.pe.Grupo02.service.UbicacionService;
+import pe.edu.pe.Grupo02.structure.GrafoUbicaciones;
 
 import java.util.List;
 
@@ -16,42 +16,62 @@ import java.util.List;
 public class UbicacionServiceImpl implements UbicacionService {
 
     private final UbicacionRepository ubicacionRepository;
-    private final AlmacenRepository almacenRepository;
+    private final GrafoUbicaciones grafo = new GrafoUbicaciones();
 
+    @Override
     public List<Ubicacion> listarTodas() {
-        return ubicacionRepository.findAll();
+        List<Ubicacion> ubicaciones = ubicacionRepository.findAll();
+        // Inicializar grafo con ubicaciones
+        for (Ubicacion u : ubicaciones) {
+            if (!grafo.contiene(u.getId())) {
+                grafo.agregarNodo(u.getId(), u.getNombre());
+            }
+        }
+        return ubicaciones;
     }
 
+    @Override
     public Ubicacion obtenerPorId(int id) {
         return ubicacionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Ubicación no encontrada: " + id));
+                .orElseThrow(() -> new RuntimeException("Ubicación no encontrada con ID: " + id));
     }
 
+    @Override
     @Transactional
     public Ubicacion crear(Ubicacion ubicacion) {
-        if (ubicacion.getAlmacen() != null && ubicacion.getAlmacen().getId() != 0) {
-            Almacen almacen = almacenRepository.findById(ubicacion.getAlmacen().getId())
-                    .orElseThrow(() -> new RuntimeException("Almacén no válido"));
-            ubicacion.setAlmacen(almacen);
-        }
-        return ubicacionRepository.save(ubicacion);
+        Ubicacion ubicacionGuardada = ubicacionRepository.save(ubicacion);
+        grafo.agregarNodo(ubicacionGuardada.getId(), ubicacionGuardada.getNombre());
+        return ubicacionGuardada;
     }
 
+    @Override
     @Transactional
     public Ubicacion actualizar(int id, Ubicacion detalles) {
         Ubicacion ubicacion = obtenerPorId(id);
         ubicacion.setNombre(detalles.getNombre());
         ubicacion.setDescripcion(detalles.getDescripcion());
-        if (detalles.getAlmacen() != null && detalles.getAlmacen().getId() != 0) {
-            Almacen almacen = almacenRepository.findById(detalles.getAlmacen().getId())
-                    .orElseThrow(() -> new RuntimeException("Almacén no válido"));
-            ubicacion.setAlmacen(almacen);
-        }
         return ubicacionRepository.save(ubicacion);
     }
 
+    @Override
     @Transactional
     public void eliminar(int id) {
         ubicacionRepository.deleteById(id);
+    }
+
+    // ===== MÉTODOS PARA GRAFO =====
+    @Override
+    public List<Integer> obtenerRutaMasCorta(int origen, int destino) {
+        return grafo.rutaMasCorta(origen, destino);
+    }
+
+    @Override
+    public List<Integer> obtenerRutaBFS(int origen, int destino) {
+        return grafo.rutaBFS(origen, destino);
+    }
+
+    @Override
+    public void conectarUbicaciones(int origen, int destino, double distancia) {
+        grafo.agregarArista(origen, destino, distancia);
     }
 }

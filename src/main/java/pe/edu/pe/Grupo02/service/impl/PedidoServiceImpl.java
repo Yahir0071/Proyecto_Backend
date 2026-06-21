@@ -1,31 +1,27 @@
+// archivo: src/main/java/pe/edu/pe/Grupo02/service/impl/PedidoServiceImpl.java
 package pe.edu.pe.Grupo02.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pe.edu.pe.Grupo02.model.DetallePedido;
 import pe.edu.pe.Grupo02.model.Pedido;
-import pe.edu.pe.Grupo02.model.Producto;
-import pe.edu.pe.Grupo02.repository.ClienteRepository;
 import pe.edu.pe.Grupo02.repository.PedidoRepository;
-import pe.edu.pe.Grupo02.repository.ProductoRepository;
-import pe.edu.pe.Grupo02.service.MovimientoStockService;
 import pe.edu.pe.Grupo02.service.PedidoService;
-import pe.edu.pe.Grupo02.structure.ListaPedidos;
+import pe.edu.pe.Grupo02.structure.ColaPedidos;
+import pe.edu.pe.Grupo02.structure.PilaHistorialEstados;
+import pe.edu.pe.Grupo02.structure.PilaHistorialEstados.EstadoPedido;
 
-import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class PedidoServiceImpl implements PedidoService {
 
     private final PedidoRepository pedidoRepository;
-    private final ClienteRepository clienteRepository;
-    private final ProductoRepository productoRepository;
-    private final MovimientoStockService movimientoStockService;
-
-    private final ListaPedidos listaPedidos = new ListaPedidos();
+    private final ColaPedidos colaPedidos = new ColaPedidos();
+    private final Map<Integer, PilaHistorialEstados> historialesPorPedido = new HashMap<>();
 
     @Override
     public List<Pedido> listarTodos() {
@@ -38,97 +34,75 @@ public class PedidoServiceImpl implements PedidoService {
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado con ID: " + id));
     }
 
-    @Transactional
     @Override
+    @Transactional
     public Pedido crear(Pedido pedido) {
-        if (pedido.getCliente() == null || pedido.getCliente().getId() == 0) {
-            throw new RuntimeException("El pedido debe tener un cliente válido.");
-        }
-        pedido.setCliente(clienteRepository.findById(pedido.getCliente().getId())
-                .orElseThrow(() -> new RuntimeException("Cliente no válido")));
-
-        if (pedido.getFecha() == null) {
-            pedido.setFecha(LocalDateTime.now());
-        }
-        pedido.setTotal(0);
-        pedido.setCantidadProductos(0);
-
-        if (pedido.getDetalles() != null) {
-            double total = 0;
-            int totalProductos = 0;
-            for (DetallePedido detalle : pedido.getDetalles()) {
-                Producto producto = productoRepository.findById(detalle.getProducto().getId())
-                        .orElseThrow(() -> new RuntimeException("Producto no válido: " + detalle.getProducto().getId()));
-                if (producto.getStockActual() < detalle.getCantidad()) {
-                    throw new RuntimeException("Cantidad insuficiente en stock para producto: " + producto.getNombre());
-                }
-                detalle.setProducto(producto);
-                detalle.setPedido(pedido);
-                detalle.setPrecioUnitario(producto.getPrecio());
-                detalle.setSubtotal(producto.getPrecio() * detalle.getCantidad());
-                total += detalle.getSubtotal();
-                totalProductos += detalle.getCantidad();
-
-                producto.setStockActual(producto.getStockActual() - detalle.getCantidad());
-                productoRepository.save(producto);
-                movimientoStockService.registrarMovimiento(producto, "SALIDA", detalle.getCantidad());
-            }
-            pedido.setTotal(total);
-            pedido.setCantidadProductos(totalProductos);
-        }
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
-
-        listaPedidos.insertar(pedidoGuardado);
-
+        // Al crear, encolar automáticamente
+        encolarPedido(pedidoGuardado);
+        // Agregar estado inicial
+        agregarEstadoPedido(pedidoGuardado.getId(), "PENDIENTE");
         return pedidoGuardado;
     }
 
-    @Transactional
     @Override
+    @Transactional
     public Pedido actualizar(int id, Pedido detalles) {
         Pedido pedido = obtenerPorId(id);
         pedido.setEstado(detalles.getEstado());
+        pedido.setTotal(detalles.getTotal());
         pedido.setPrioridad(detalles.getPrioridad());
-        pedido.setFecha(detalles.getFecha() != null ? detalles.getFecha() : pedido.getFecha());
-
-        if (detalles.getDetalles() != null) {
-            pedido.getDetalles().clear();
-            for (DetallePedido detalle : detalles.getDetalles()) {
-                Producto producto = productoRepository.findById(detalle.getProducto().getId())
-                        .orElseThrow(() -> new RuntimeException("Producto no válido: " + detalle.getProducto().getId()));
-                detalle.setProducto(producto);
-                detalle.setPedido(pedido);
-                detalle.setPrecioUnitario(producto.getPrecio());
-                detalle.setSubtotal(producto.getPrecio() * detalle.getCantidad());
-                pedido.getDetalles().add(detalle);
-            }
-            pedido.setCantidadProductos(pedido.getDetalles().stream().mapToInt(DetallePedido::getCantidad).sum());
-            pedido.setTotal(pedido.getDetalles().stream().mapToDouble(DetallePedido::getSubtotal).sum());
-        }
         return pedidoRepository.save(pedido);
     }
 
+    @Override
     @Transactional
     public void eliminar(int id) {
         pedidoRepository.deleteById(id);
     }
 
-    public List<Pedido> buscarPorEstado(String estado) {
-        return pedidoRepository.findByEstadoOrderByPrioridadDesc(estado);
+    // ===== MÉTODOS PARA COLA =====
+    @Override
+    public void encolarPedido(Pedido pedido) {
+        colaPedidos.encolar(pedido);
     }
 
-    public List<Pedido> buscarPorCliente(int clienteId) {
-        return pedidoRepository.findByClienteId(clienteId);
+    @Override
+    public Pedido procesarSiguientePedido() {
+        return colaPedidos.desencolar();
     }
 
-    public List<Pedido> buscarPorRangoFecha(LocalDateTime desde, LocalDateTime hasta) {
-        return pedidoRepository.findByFechaBetween(desde, hasta);
+    @Override
+    public Pedido obtenerPrimeroEnCola() {
+        return colaPedidos.obtenerPrimero();
     }
 
-    @Transactional
-    public Pedido actualizarEstadoPedido(int pedidoId, String nuevoEstado) {
-        Pedido pedido = obtenerPorId(pedidoId);
-        pedido.setEstado(nuevoEstado);
-        return pedidoRepository.save(pedido);
+    @Override
+    public int obtenerTamanioCola() {
+        return colaPedidos.tamanio();
+    }
+
+    // ===== MÉTODOS PARA PILA =====
+    @Override
+    public void agregarEstadoPedido(int idPedido, String estado) {
+        historialesPorPedido.putIfAbsent(idPedido, new PilaHistorialEstados());
+        historialesPorPedido.get(idPedido).apilar(estado, idPedido);
+    }
+
+    @Override
+    public EstadoPedido deshacerEstadoPedido(int idPedido) {
+        if (historialesPorPedido.containsKey(idPedido)) {
+            return historialesPorPedido.get(idPedido).deshacer();
+        }
+        return null;
+    }
+
+    @Override
+    public String obtenerUltimoEstadoPedido(int idPedido) {
+        if (historialesPorPedido.containsKey(idPedido)) {
+            EstadoPedido estado = historialesPorPedido.get(idPedido).obtenerUltimo();
+            return estado != null ? estado.getNombre() : null;
+        }
+        return null;
     }
 }

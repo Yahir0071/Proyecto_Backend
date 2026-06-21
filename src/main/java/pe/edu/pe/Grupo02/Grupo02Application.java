@@ -4,6 +4,8 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,6 +28,22 @@ public class Grupo02Application {
 
         // 2. Arrancamos el backend PRIMERO (Esto bloquea el hilo hasta que termine)
         SpringApplication.run(Grupo02Application.class, args);
+    }
+
+    // ===== CONFIGURACIÓN CORS =====
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/api/**")
+                        .allowedOrigins("*")
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedHeaders("*")
+                        .allowCredentials(false)
+                        .maxAge(3600);
+            }
+        };
     }
 
     @Bean
@@ -61,8 +79,8 @@ public class Grupo02Application {
     private static void automatizarEntornoHTML() {
         try {
             File directorioActual = new File(".").getCanonicalFile();
-            File carpetaFrontend = new File(directorioActual.getParentFile(), "frontend").getCanonicalFile();
-            File archivoIndex = new File(carpetaFrontend, "index.html");
+            File carpetaFrontend = new File(directorioActual.getParentFile(), "Proyecto_Fronted").getCanonicalFile();
+            File archivoIndex = new File(carpetaFrontend, "index-login.html");
 
             System.out.println("[INFO] Ruta base del backend: " + directorioActual.getAbsolutePath());
             System.out.println("[INFO] Ruta del frontend HTML: " + carpetaFrontend.getAbsolutePath());
