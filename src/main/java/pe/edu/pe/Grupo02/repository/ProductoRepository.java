@@ -11,7 +11,7 @@ import java.util.List;
 public interface ProductoRepository extends JpaRepository<Producto, Integer> {
     List<Producto> findByCategoria(String categoria);
 
-    @Query("SELECT COUNT(p) FROM Producto p WHERE p.ubicacion.id = ?1")
+    @Query("SELECT COUNT(p) FROM Producto p WHERE p.ubicacion IS NOT NULL AND p.ubicacion.id = ?1")
     int countByUbicacionId(int ubicacionId);
 
 }
