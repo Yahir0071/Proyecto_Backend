@@ -4,7 +4,9 @@ package pe.edu.pe.Grupo02.service.impl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.edu.pe.Grupo02.model.Almacen;
 import pe.edu.pe.Grupo02.model.Ubicacion;
+import pe.edu.pe.Grupo02.repository.AlmacenRepository;
 import pe.edu.pe.Grupo02.repository.UbicacionRepository;
 import pe.edu.pe.Grupo02.service.UbicacionService;
 import pe.edu.pe.Grupo02.structure.GrafoUbicaciones;
@@ -17,7 +19,9 @@ public class UbicacionServiceImpl implements UbicacionService {
 
     private final UbicacionRepository ubicacionRepository;
     private final GrafoUbicaciones grafo = new GrafoUbicaciones();
+    private final AlmacenRepository almacenRepository;
 
+    @Transactional(readOnly = true)
     @Override
     public List<Ubicacion> listarTodas() {
         List<Ubicacion> ubicaciones = ubicacionRepository.findAll();
@@ -39,9 +43,15 @@ public class UbicacionServiceImpl implements UbicacionService {
     @Override
     @Transactional
     public Ubicacion crear(Ubicacion ubicacion) {
-        Ubicacion ubicacionGuardada = ubicacionRepository.save(ubicacion);
-        grafo.agregarNodo(ubicacionGuardada.getId(), ubicacionGuardada.getNombre());
-        return ubicacionGuardada;
+        // 2. Reemplazamos el "Fantasma" por el Almacén real de la base de datos:
+        if (ubicacion.getAlmacen() != null && ubicacion.getAlmacen().getId() > 0) {
+            Almacen almacenReal = almacenRepository.findById(ubicacion.getAlmacen().getId())
+                    .orElseThrow(() -> new RuntimeException("El Almacén especificado no existe"));
+
+            ubicacion.setAlmacen(almacenReal);
+        }
+
+        return ubicacionRepository.save(ubicacion);
     }
 
     @Override

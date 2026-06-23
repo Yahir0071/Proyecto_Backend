@@ -19,7 +19,7 @@ public class Ubicacion {
     private String nombre;
     private String descripcion;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "almacen_id")
     private Almacen almacen;
 }

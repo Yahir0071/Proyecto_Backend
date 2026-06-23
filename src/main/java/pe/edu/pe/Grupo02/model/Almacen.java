@@ -24,7 +24,7 @@ public class Almacen {
     private int filas;
     private int columnas;
 
-    @OneToMany(mappedBy = "almacen", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "almacen", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Ubicacion> ubicaciones = new ArrayList<>();
 
 }
