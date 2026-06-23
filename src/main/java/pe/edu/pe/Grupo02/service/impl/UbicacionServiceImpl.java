@@ -80,7 +80,18 @@ public class UbicacionServiceImpl implements UbicacionService {
         }
 
         // Si no hay productos, eliminar la ubicación
-        ubicacionRepository.deleteById(id);
+        // 1. Buscamos la ubicación real en la base de datos
+        Ubicacion ubicacion1 = ubicacionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Ubicación no encontrada: " + id));
+
+        // 2. Cortamos el lazo sagrado con el padre (Lo sacamos de su lista)
+        Almacen almacen = ubicacion1.getAlmacen();
+        if (almacen != null) {
+            almacen.getUbicaciones().remove(ubicacion1);
+        }
+
+        // 3. Ahora sí, lo borramos para siempre
+        ubicacionRepository.delete(ubicacion1);
     }
 
     // ===== MÉTODOS PARA GRAFO =====
