@@ -16,10 +16,16 @@ public interface UbicacionService {
 
     public void eliminar(int id);
 
+    public List<Ubicacion> listarPorAlmacen(int almacenId);
+
+    int countProductosByUbicacion(int ubicacionId);
+
     // MÉTODOS PARA GRAFO
     List<Integer> obtenerRutaMasCorta(int origen, int destino);
 
     List<Integer> obtenerRutaBFS(int origen, int destino);
 
     void conectarUbicaciones(int origen, int destino, double distancia);
+
+
 }

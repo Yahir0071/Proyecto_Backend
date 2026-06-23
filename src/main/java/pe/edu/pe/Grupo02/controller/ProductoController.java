@@ -9,6 +9,7 @@ import pe.edu.pe.Grupo02.model.Producto;
 import pe.edu.pe.Grupo02.service.ProductoService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/productos")
@@ -72,5 +73,12 @@ public class ProductoController {
         // Reutilizamos tu lógica existente del service que ya maneja la persistencia
         productoService.registrarEntradaMercancia(id, cantidad);
         return ResponseEntity.ok("Stock actualizado correctamente");
+    }
+
+    @PutMapping("/{id}/ubicacion")
+    public ResponseEntity<ProductoDTO> asignarUbicacion(@PathVariable int id, @RequestBody Map<String, Integer> request) {
+        int ubicacionId = request.get("ubicacionId");
+        Producto actualizado = productoService.asignarUbicacion(id, ubicacionId);
+        return ResponseEntity.ok(mapper.toDTO(actualizado));
     }
 }

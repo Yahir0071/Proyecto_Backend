@@ -1,4 +1,3 @@
-// archivo: src/main/java/pe/edu/pe/Grupo02/service/impl/UbicacionServiceImpl.java
 package pe.edu.pe.Grupo02.service.impl;
 
 import lombok.RequiredArgsConstructor;
@@ -7,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import pe.edu.pe.Grupo02.model.Almacen;
 import pe.edu.pe.Grupo02.model.Ubicacion;
 import pe.edu.pe.Grupo02.repository.AlmacenRepository;
+import pe.edu.pe.Grupo02.repository.ProductoRepository;
 import pe.edu.pe.Grupo02.repository.UbicacionRepository;
 import pe.edu.pe.Grupo02.service.UbicacionService;
 import pe.edu.pe.Grupo02.structure.GrafoUbicaciones;
@@ -18,6 +18,8 @@ import java.util.List;
 public class UbicacionServiceImpl implements UbicacionService {
 
     private final UbicacionRepository ubicacionRepository;
+
+    private final ProductoRepository productoRepository;
     private final GrafoUbicaciones grafo = new GrafoUbicaciones();
     private final AlmacenRepository almacenRepository;
 
@@ -66,6 +68,18 @@ public class UbicacionServiceImpl implements UbicacionService {
     @Override
     @Transactional
     public void eliminar(int id) {
+        Ubicacion ubicacion = obtenerPorId(id);
+
+        // ✅ Verificar si la ubicación tiene productos asignados
+        int productosCount = productoRepository.countByUbicacionId(id);
+
+        if (productosCount > 0) {
+            throw new RuntimeException("No se puede eliminar la ubicación '" + ubicacion.getNombre()
+                    + "' porque tiene " + productosCount + " producto(s) asignado(s). "
+                    + "Desasigne los productos primero.");
+        }
+
+        // Si no hay productos, eliminar la ubicación
         ubicacionRepository.deleteById(id);
     }
 
@@ -83,5 +97,15 @@ public class UbicacionServiceImpl implements UbicacionService {
     @Override
     public void conectarUbicaciones(int origen, int destino, double distancia) {
         grafo.agregarArista(origen, destino, distancia);
+    }
+
+    @Override
+    public List<Ubicacion> listarPorAlmacen(int almacenId) {
+        return ubicacionRepository.findByAlmacenId(almacenId);
+    }
+
+    @Override
+    public int countProductosByUbicacion(int ubicacionId) {
+        return productoRepository.countByUbicacionId(ubicacionId);
     }
 }

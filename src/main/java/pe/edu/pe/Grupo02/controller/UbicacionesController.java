@@ -10,7 +10,9 @@ import pe.edu.pe.Grupo02.dto.mapper.UbicacionMapper;
 import pe.edu.pe.Grupo02.model.Ubicacion;
 import pe.edu.pe.Grupo02.service.UbicacionService;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/ubicaciones")
@@ -52,9 +54,31 @@ public class UbicacionesController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<String> eliminar(@PathVariable int id) {
-        ubicacionService.eliminar(id);
-        return ResponseEntity.ok("Ubicación eliminada");
+    public ResponseEntity<Map<String, Object>> eliminar(@PathVariable int id) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            // ✅ Verificar si tiene productos
+            int productosCount = ubicacionService.countProductosByUbicacion(id);
+
+            if (productosCount > 0) {
+                // ❌ No se puede eliminar
+                response.put("exitoso", false);
+                response.put("mensaje", "No se puede eliminar. Esta ubicación tiene " + productosCount + " producto(s) asignado(s).");
+                return ResponseEntity.ok(response);
+            }
+
+            // ✅ Eliminar
+            ubicacionService.eliminar(id);
+            response.put("exitoso", true);
+            response.put("mensaje", "✅ Ubicación eliminada exitosamente");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            response.put("exitoso", false);
+            response.put("mensaje", "Error: " + e.getMessage());
+            return ResponseEntity.ok(response);
+        }
     }
 
     // ===== RUTAS Y LOGÍSTICA =====
@@ -88,4 +112,14 @@ public class UbicacionesController {
         ubicacionService.conectarUbicaciones(origen, destino, distancia);
         return ResponseEntity.ok("Ubicaciones conectadas exitosamente");
     }
+
+    @GetMapping("/por-almacen/{almacenId}")
+    public ResponseEntity<List<UbicacionDTO>> listarPorAlmacen(@PathVariable int almacenId) {
+        List<Ubicacion> ubicaciones = ubicacionService.listarPorAlmacen(almacenId);
+        List<UbicacionDTO> dtos = ubicaciones.stream()
+                .map(ubicacionMapper::toDTO)
+                .toList();
+        return ResponseEntity.ok(dtos);
+    }
+
 }

@@ -20,5 +20,7 @@ public interface ProductoService {
     public List<Producto> obtenerAlertasDeStockBajo();
 
     public List<Producto> buscarPorCategoria(String categoria);
+
+    public Producto asignarUbicacion(int productoId, int ubicacionId);
 }
 

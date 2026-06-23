@@ -29,11 +29,16 @@ public class ProductoServiceImpl implements ProductoService {
 
     @Transactional
     public Producto crear(Producto producto) {
-        if (producto.getUbicacion() != null && producto.getUbicacion().getId() != 0) {
+        // ✅ IMPORTANTE: Solo asignar ubicación si se proporciona un ID válido
+        if (producto.getUbicacion() != null && producto.getUbicacion().getId() > 0) {
             Ubicacion ubicacion = ubicacionRepository.findById(producto.getUbicacion().getId())
-                    .orElseThrow(() -> new RuntimeException("Ubicación no válida"));
+                    .orElseThrow(() -> new RuntimeException("Ubicación no válida con ID: " + producto.getUbicacion().getId()));
             producto.setUbicacion(ubicacion);
+        } else {
+            // Si no se proporciona ubicación, dejarlo en null
+            producto.setUbicacion(null);
         }
+
         return productoRepository.save(producto);
     }
 
@@ -48,21 +53,23 @@ public class ProductoServiceImpl implements ProductoService {
         producto.setUnidadMedida(detalles.getUnidadMedida());
         producto.setActivo(detalles.isActivo());
 
-        if (detalles.getUbicacion() != null && detalles.getUbicacion().getId() != 0) {
+        // ✅ IMPORTANTE: Solo actualizar ubicación si se proporciona un ID válido
+        if (detalles.getUbicacion() != null && detalles.getUbicacion().getId() > 0) {
             Ubicacion ubicacion = ubicacionRepository.findById(detalles.getUbicacion().getId())
-                    .orElseThrow(() -> new RuntimeException("Ubicación no válida"));
+                    .orElseThrow(() -> new RuntimeException("Ubicación no válida con ID: " + detalles.getUbicacion().getId()));
             producto.setUbicacion(ubicacion);
         }
+        // Si detalles.getUbicacion() es null, mantener la ubicación actual del producto
 
         return productoRepository.save(producto);
     }
-
+    @Override
     @Transactional
     public void eliminar(int id) {
         Producto producto = obtenerPorId(id);
         productoRepository.delete(producto);
     }
-
+    @Override
     @Transactional
     public Producto registrarEntradaMercancia(int productoId, int cantidad) {
         Producto producto = obtenerPorId(productoId);
@@ -79,5 +86,19 @@ public class ProductoServiceImpl implements ProductoService {
     public List<Producto> buscarPorCategoria(String categoria) {
         return productoRepository.findByCategoria(categoria);
     }
-}
 
+    @Transactional
+    public Producto asignarUbicacion(int productoId, int ubicacionId) {
+        Producto producto = obtenerPorId(productoId);
+
+        if (ubicacionId > 0) {
+            Ubicacion ubicacion = ubicacionRepository.findById(ubicacionId)
+                    .orElseThrow(() -> new RuntimeException("Ubicación no válida con ID: " + ubicacionId));
+            producto.setUbicacion(ubicacion);
+        } else {
+            throw new RuntimeException("Ubicación ID debe ser mayor a 0");
+        }
+
+        return productoRepository.save(producto);
+    }
+}
