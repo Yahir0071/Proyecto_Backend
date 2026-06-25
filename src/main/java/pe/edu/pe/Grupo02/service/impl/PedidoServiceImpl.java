@@ -37,6 +37,14 @@ public class PedidoServiceImpl implements PedidoService {
     @Override
     @Transactional
     public Pedido crear(Pedido pedido) {
+        // --- INICIO DE LA SOLUCIÓN ---
+        // Debemos enlazar manualmente cada detalle con este pedido antes de guardarlo
+        if (pedido.getDetalles() != null) {
+            for (pe.edu.pe.Grupo02.model.DetallePedido detalle : pedido.getDetalles()) {
+                detalle.setPedido(pedido);
+            }
+        }
+        // --- FIN DE LA SOLUCIÓN ---
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
         // Al crear, encolar automáticamente
         encolarPedido(pedidoGuardado);
