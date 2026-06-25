@@ -22,7 +22,9 @@ public class Producto {
     private int stockActual;
     private int stockMinimo;
     private String unidadMedida;
-
+    @ManyToOne
+    @JoinColumn(name = "proveedor_id")
+    private Proveedor proveedor;
     @ManyToOne
     @JoinColumn(name = "ubicacion_id")
     private Ubicacion ubicacion;

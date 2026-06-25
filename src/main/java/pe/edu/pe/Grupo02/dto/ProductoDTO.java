@@ -18,6 +18,9 @@ public class ProductoDTO {
     private int stockMinimo;
     private String unidadMedida;
     private int ubicacionId;
+    // Agrega esto a tus variables existentes:
+    private Integer proveedorId;
+    private String proveedorNombre;
     private String nombreUbicacion;
     private boolean activo;
 }
