@@ -12,7 +12,7 @@ public interface PedidoMapper {
 
     @Mapping(source = "cliente.id", target = "clienteId")
     @Mapping(source = "cliente.nombre", target = "clienteNombre")
-    PedidoDTO toDTO(Pedido pedido);
+    PedidoDTO toDTO(Pedido pedido);  // MapStruct auto-mapea "detalles" si los nombres coinciden
 
     @Mapping(source = "clienteId", target = "cliente.id")
     Pedido toEntity(PedidoDTO dto);
