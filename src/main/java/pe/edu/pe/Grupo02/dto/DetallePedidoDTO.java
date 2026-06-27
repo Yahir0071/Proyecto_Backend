@@ -16,4 +16,5 @@ public class DetallePedidoDTO {
     private int pedidoId;
     private int cantidad;
     private double precioUnitario;
+    private double subtotal;
 }

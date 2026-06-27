@@ -5,6 +5,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import pe.edu.pe.Grupo02.model.DetallePedido;
 import pe.edu.pe.Grupo02.model.Pedido;
 import pe.edu.pe.Grupo02.model.Producto;
 import pe.edu.pe.Grupo02.repository.DetallePedidoRepository;
@@ -44,7 +45,7 @@ public class PedidoServiceImpl implements PedidoService {
     @Transactional
     public Pedido crear(Pedido pedido) {
         if (pedido.getDetalles() != null) {
-            for (pe.edu.pe.Grupo02.model.DetallePedido detalle : pedido.getDetalles()) {
+            for (DetallePedido detalle : pedido.getDetalles()) {
                 detalle.setPedido(pedido);
 
                 // NUEVO: Descontar stock del producto
@@ -61,6 +62,9 @@ public class PedidoServiceImpl implements PedidoService {
 
                 producto.setStockActual(producto.getStockActual() - detalle.getCantidad());
                 productoRepository.save(producto);
+
+                detalle.setPrecioUnitario(producto.getPrecio());
+                detalle.setSubtotal(producto.getPrecio() * detalle.getCantidad());
             }
 
             int totalCantidad = pedido.getDetalles().stream()
