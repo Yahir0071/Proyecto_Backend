@@ -123,8 +123,11 @@ public class PedidosController {
     }
 
     @GetMapping("/{idPedido}/estados/ultimo")
-    public ResponseEntity<String> obtenerUltimoEstado(@PathVariable int idPedido) {
+    public ResponseEntity<?> obtenerUltimoEstado(@PathVariable int idPedido) {
         String estado = pedidoService.obtenerUltimoEstadoPedido(idPedido);
+        if (estado == null) {
+            return ResponseEntity.ok("Sin historial en esta sesión");
+        }
         return ResponseEntity.ok(estado);
     }
 }

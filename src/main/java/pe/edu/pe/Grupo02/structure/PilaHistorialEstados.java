@@ -24,6 +24,7 @@ public class PilaHistorialEstados {
     }
 
     public EstadoPedido obtenerUltimo() {
+        if (pila.isEmpty()) return null;
         return pila.peek();
     }
 

@@ -1,6 +1,7 @@
 // archivo: src/main/java/pe/edu/pe/Grupo02/service/impl/PedidoServiceImpl.java
 package pe.edu.pe.Grupo02.service.impl;
 
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,18 +38,22 @@ public class PedidoServiceImpl implements PedidoService {
     @Override
     @Transactional
     public Pedido crear(Pedido pedido) {
-        // --- INICIO DE LA SOLUCIÓN ---
-        // Debemos enlazar manualmente cada detalle con este pedido antes de guardarlo
         if (pedido.getDetalles() != null) {
             for (pe.edu.pe.Grupo02.model.DetallePedido detalle : pedido.getDetalles()) {
                 detalle.setPedido(pedido);
             }
+            // Calcular cantidad total de productos
+            int totalCantidad = pedido.getDetalles().stream()
+                    .mapToInt(d -> d.getCantidad())
+                    .sum();
+            pedido.setCantidadProductos(totalCantidad);
         }
-        // --- FIN DE LA SOLUCIÓN ---
+
+        // Fecha automática
+        pedido.setFecha(java.time.LocalDateTime.now());
+
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
-        // Al crear, encolar automáticamente
         encolarPedido(pedidoGuardado);
-        // Agregar estado inicial
         agregarEstadoPedido(pedidoGuardado.getId(), "PENDIENTE");
         return pedidoGuardado;
     }
@@ -77,7 +82,19 @@ public class PedidoServiceImpl implements PedidoService {
 
     @Override
     public Pedido procesarSiguientePedido() {
-        return colaPedidos.desencolar();
+        Pedido pedido = colaPedidos.desencolar();
+        if (pedido != null) {
+            // Recargar desde BD para tener datos frescos
+            Pedido pedidoBD = pedidoRepository.findById(pedido.getId())
+                    .orElse(null);
+            if (pedidoBD != null) {
+                pedidoBD.setEstado("EN_PREPARACION");
+                pedidoRepository.save(pedidoBD);
+                agregarEstadoPedido(pedidoBD.getId(), "EN_PREPARACION");
+                return pedidoBD;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -112,5 +129,15 @@ public class PedidoServiceImpl implements PedidoService {
             return estado != null ? estado.getNombre() : null;
         }
         return null;
+    }
+
+    @PostConstruct
+    public void inicializarColaDesdeBD() {
+        List<Pedido> todos = pedidoRepository.findAll();
+        for (Pedido p : todos) {
+            if ("PENDIENTE".equalsIgnoreCase(p.getEstado())) {
+                colaPedidos.encolar(p);
+            }
+        }
     }
 }
