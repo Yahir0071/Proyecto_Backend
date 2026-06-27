@@ -6,7 +6,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pe.edu.pe.Grupo02.model.Pedido;
+import pe.edu.pe.Grupo02.model.Producto;
+import pe.edu.pe.Grupo02.repository.DetallePedidoRepository;
 import pe.edu.pe.Grupo02.repository.PedidoRepository;
+import pe.edu.pe.Grupo02.repository.ProductoRepository;
 import pe.edu.pe.Grupo02.service.PedidoService;
 import pe.edu.pe.Grupo02.structure.ColaPedidos;
 import pe.edu.pe.Grupo02.structure.PilaHistorialEstados;
@@ -20,6 +23,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PedidoServiceImpl implements PedidoService {
 
+    private final ProductoRepository productoRepository;
+    private final DetallePedidoRepository detallePedidoRepository;
     private final PedidoRepository pedidoRepository;
     private final ColaPedidos colaPedidos = new ColaPedidos();
     private final Map<Integer, PilaHistorialEstados> historialesPorPedido = new HashMap<>();
@@ -41,15 +46,29 @@ public class PedidoServiceImpl implements PedidoService {
         if (pedido.getDetalles() != null) {
             for (pe.edu.pe.Grupo02.model.DetallePedido detalle : pedido.getDetalles()) {
                 detalle.setPedido(pedido);
+
+                // NUEVO: Descontar stock del producto
+                Producto producto = productoRepository.findById(detalle.getProducto().getId())
+                        .orElseThrow(() -> new RuntimeException(
+                                "Producto no encontrado con ID: " + detalle.getProducto().getId()));
+
+                if (producto.getStockActual() < detalle.getCantidad()) {
+                    throw new RuntimeException(
+                            "Stock insuficiente para '" + producto.getNombre() +
+                                    "'. Disponible: " + producto.getStockActual() +
+                                    ", solicitado: " + detalle.getCantidad());
+                }
+
+                producto.setStockActual(producto.getStockActual() - detalle.getCantidad());
+                productoRepository.save(producto);
             }
-            // Calcular cantidad total de productos
+
             int totalCantidad = pedido.getDetalles().stream()
                     .mapToInt(d -> d.getCantidad())
                     .sum();
             pedido.setCantidadProductos(totalCantidad);
         }
 
-        // Fecha automática
         pedido.setFecha(java.time.LocalDateTime.now());
 
         Pedido pedidoGuardado = pedidoRepository.save(pedido);
@@ -71,6 +90,17 @@ public class PedidoServiceImpl implements PedidoService {
     @Override
     @Transactional
     public void eliminar(int id) {
+        Pedido pedido = obtenerPorId(id);
+
+        // Restaurar stock de cada detalle
+        if (pedido.getDetalles() != null) {
+            for (pe.edu.pe.Grupo02.model.DetallePedido detalle : pedido.getDetalles()) {
+                pe.edu.pe.Grupo02.model.Producto producto = detalle.getProducto();
+                producto.setStockActual(producto.getStockActual() + detalle.getCantidad());
+                productoRepository.save(producto);
+            }
+        }
+
         pedidoRepository.deleteById(id);
     }
 

@@ -21,29 +21,44 @@ public class DetallePedidoImpl implements DetallePedidoService {
     private final PedidoRepository pedidoRepository;
     private final ProductoRepository productoRepository;
 
+    @Override
     public List<DetallePedido> listarTodos() {
         return detallePedidoRepository.findAll();
     }
 
+    @Override
     public DetallePedido obtenerPorId(int id) {
         return detallePedidoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Detalle de pedido no encontrado: " + id));
     }
 
+    @Override
     public List<DetallePedido> listarPorPedido(int pedidoId) {
         return detallePedidoRepository.findByPedidoId(pedidoId);
     }
 
+    @Override
     public List<DetallePedido> listarPorProducto(int productoId) {
         return detallePedidoRepository.findByProductoId(productoId);
     }
 
     @Transactional
+    @Override
     public DetallePedido crear(DetallePedido detalle) {
         Pedido pedido = pedidoRepository.findById(detalle.getPedido().getId())
                 .orElseThrow(() -> new RuntimeException("Pedido no válido: " + detalle.getPedido().getId()));
         Producto producto = productoRepository.findById(detalle.getProducto().getId())
                 .orElseThrow(() -> new RuntimeException("Producto no válido: " + detalle.getProducto().getId()));
+
+        // Validar stock suficiente
+        if (producto.getStockActual() < detalle.getCantidad()) {
+            throw new RuntimeException("Stock insuficiente para '" + producto.getNombre() +
+                    "'. Stock disponible: " + producto.getStockActual());
+        }
+
+        // Descontar stock
+        producto.setStockActual(producto.getStockActual() - detalle.getCantidad());
+        productoRepository.save(producto);
 
         detalle.setPedido(pedido);
         detalle.setProducto(producto);
@@ -54,6 +69,7 @@ public class DetallePedidoImpl implements DetallePedidoService {
     }
 
     @Transactional
+    @Override
     public DetallePedido actualizar(int id, DetallePedido detalles) {
         DetallePedido detalle = obtenerPorId(id);
         Producto producto = productoRepository.findById(detalles.getProducto().getId())
@@ -67,6 +83,7 @@ public class DetallePedidoImpl implements DetallePedidoService {
     }
 
     @Transactional
+    @Override
     public void eliminar(int id) {
         detallePedidoRepository.deleteById(id);
     }

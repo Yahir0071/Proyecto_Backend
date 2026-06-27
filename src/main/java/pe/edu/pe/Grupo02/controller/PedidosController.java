@@ -110,16 +110,24 @@ public class PedidosController {
 
     @PostMapping("/{idPedido}/estados/deshacer")
     public ResponseEntity<EstadoHistorialDTO> deshacerEstado(@PathVariable int idPedido) {
-        var estadoPop = pedidoService.deshacerEstadoPedido(idPedido);
-        if (estadoPop != null) {
-            EstadoHistorialDTO dto = new EstadoHistorialDTO(
-                    estadoPop.getNombre(),
-                    estadoPop.getFecha(),
-                    estadoPop.getIdPedido()
-            );
-            return ResponseEntity.ok(dto);
+        // Sacar el estado actual (tope)
+        var estadoActual = pedidoService.deshacerEstadoPedido(idPedido);
+        if (estadoActual == null) {
+            return ResponseEntity.noContent().build();
         }
-        return ResponseEntity.noContent().build();
+
+        // Ver cuál es el estado anterior (nuevo tope)
+        String estadoAnterior = pedidoService.obtenerUltimoEstadoPedido(idPedido);
+        if (estadoAnterior == null) {
+            estadoAnterior = "PENDIENTE"; // fallback
+        }
+
+        EstadoHistorialDTO dto = new EstadoHistorialDTO(
+                estadoAnterior,  // ← devolver el estado al que volver
+                estadoActual.getFecha(),
+                estadoActual.getIdPedido()
+        );
+        return ResponseEntity.ok(dto);
     }
 
     @GetMapping("/{idPedido}/estados/ultimo")

@@ -26,6 +26,7 @@ public class AlmacenServiceImpl implements AlmacenService {
     }
 
     @Transactional
+    @Override
     public Almacen crear(Almacen almacen) {
         if (almacen.getUbicaciones() != null) {
             almacen.getUbicaciones().forEach(u -> u.setAlmacen(almacen));
@@ -34,6 +35,7 @@ public class AlmacenServiceImpl implements AlmacenService {
     }
 
     @Transactional
+    @Override
     public Almacen actualizar(int id, Almacen detalles) {
         Almacen almacen = obtenerPorId(id);
         almacen.setNombre(detalles.getNombre());
@@ -44,16 +46,19 @@ public class AlmacenServiceImpl implements AlmacenService {
     }
 
     @Transactional
+    @Override
     public void eliminar(int id) {
         almacenRepository.deleteById(id);
     }
 
+    @Override
     public List<Ubicacion> obtenerTodasUbicaciones() {
         return almacenRepository.findAll().stream()
                 .flatMap(a -> a.getUbicaciones().stream())
                 .toList();
     }
 
+    @Override
     public Ubicacion sugerirUbicacionDisponible() {
         return almacenRepository.findAll().stream()
                 .flatMap(a -> a.getUbicaciones().stream())
